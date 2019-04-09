@@ -19,7 +19,6 @@ void imprimeMacaco(int direcao);
 
 int main(void){
   setlocale(LC_ALL, "");
-  imprimeMacaco(1);
   pthread_t thds[L];
   for(int i = 0; i < L; i++){
     int *info = (int *) malloc(sizeof(int) * 2);
@@ -45,7 +44,9 @@ void * caminhoDaSelva(void *arg1){
       unlock(&portaDoBandoUm);
       unlock(&portaDoFiscal);
 
-      printf("\e[7;35mMacaco %d do bando %d passando. Uh-Uhh!\e[0m\n", id, bando);
+      printf("\e[7;35mMacaco %d do bando %d passando. Uh-Uhh!\n", id, bando);
+      imprimeMacaco(bando);
+      printf("\e[0m\n");
       sleep(1);
 
       lock(&portaDoBandoUm);
@@ -61,7 +62,9 @@ void * caminhoDaSelva(void *arg1){
       unlock(&portaDoBandoDois);
       unlock(&portaDoFiscal);
 
-      printf("\e[7;36mMacaco %d do bando %d passando. Uh-Uhh!\e[0m\n", id, bando);
+      printf("\e[7;36mMacaco %d do bando %d passando. Uh-Uhh!\n", id, bando);
+      imprimeMacaco(bando);
+      printf("\e[0m\n");
       sleep(1);
 
       lock(&portaDoBandoDois);
@@ -74,9 +77,20 @@ void * caminhoDaSelva(void *arg1){
   pthread_exit(NULL);
 }
 void imprimeMacaco(int direcao){
+  int apaga = 0;
   for(int i = 0; i < 4; i++){
-    printf("%s%ls", i == 0 ? "" : "\b ", L"🐵");
+    if(direcao == 1)
+      printf("%s%ls", i == 0 ? "" : "\b ", L"🐵");
+    else{
+      apaga++;
+      printf("    ");
+      fflush(stdout);
+      printf("\e[%dDa\b \b", apaga);
+      fflush(stdout);
+      printf("%ls", L"🐵");
+      printf("\b\b\b\b\b");
+    }
+    fflush(stdout);
     sleep(1);
   }
-  printf("\n");
 }
