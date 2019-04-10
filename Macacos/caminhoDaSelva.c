@@ -13,6 +13,7 @@
 pthread_mutex_t portaDoBandoUm = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t portaDoBandoDois = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t portaDoFiscal = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t portaDaPassarela = PTHREAD_MUTEX_INITIALIZER;
 
 void * caminhoDaSelva(void *);
 void imprimeMacaco(int direcao);
@@ -79,18 +80,20 @@ void * caminhoDaSelva(void *arg1){
 void imprimeMacaco(int direcao){
   int apaga = 0;
   for(int i = 0; i < 4; i++){
-    if(direcao == 1)
+    if(direcao == 1){
       printf("%s%ls", i == 0 ? "" : "\b ", L"🐵");
-    else{
-      apaga++;
-      printf("    ");
-      fflush(stdout);
-      printf("\e[%dDa\b \b", apaga);
-      fflush(stdout);
-      printf("%ls", L"🐵");
-      printf("\b\b\b\b\b");
+			fflush(stdout);
+			sleep(1);
+    }else{
+			if(i == 0) printf("       \e[7D"), fflush(stdout);
+			printf("\e[%dC", 7 - ++apaga);
+      printf("%s%ls", i == 0 ? "" : "\b\b\b", L"🐵");
+			fflush(stdout);
+			sleep(1);
+			printf("\b ");
+			printf("\e[%dD", 7 - apaga);
+			fflush(stdout);
     }
-    fflush(stdout);
-    sleep(1);
-  }
+ }
+ if(direcao) printf("\b "), fflush(stdout);
 }
