@@ -78,6 +78,8 @@ void * caminhoDaSelva(void *arg1){
   pthread_exit(NULL);
 }
 void imprimeMacaco(int direcao){
+  static int temalguem;
+  lock(&portaDaPassarela);
   int apaga = 0;
   for(int i = 0; i < 4; i++){
     if(direcao == 1){
