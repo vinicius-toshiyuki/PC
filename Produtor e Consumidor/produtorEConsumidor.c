@@ -16,7 +16,7 @@ pthread_cond_t semProdutos = PTHREAD_COND_INITIALIZER;
 #define wait(cond, lock) pthread_cond_wait(cond, lock);
 #define signal(cond) pthread_cond_signal(cond);
 
-int buffer[10] = {[0 ... 9] = 0};
+int buffer[N] = {[0 ... N - 1] = 0};
 int contador = 0;
 
 void * produtor(void *arg);
