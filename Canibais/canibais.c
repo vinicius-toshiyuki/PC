@@ -60,7 +60,7 @@ void * canibal(void *arg){
   while(1){
     pthread_mutex_lock(&lock);
     while(qtd == 0){
-      printf("[\e[48;5;167m  \e[0m] \e[38;5;173m>:c %ls comida. Cozinha! Mesa vazia!\e[0m\n", L"Cadê");
+      printf("[\e[48;5;167m  \e[0m] \e[38;5;173m>:c Onde comida. Cozinha! Mesa vazia!\e[0m\n");
       pthread_cond_signal(&conz);
       printf("[\e[48;5;167m  \e[0m] \e[38;5;174mIr dormir. Acordar quando pronto.\e[0m\n");
       pthread_cond_wait(&cond, &lock);
