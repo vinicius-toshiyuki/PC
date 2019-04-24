@@ -16,8 +16,11 @@ void descansa(int tempo);
 void trabalha(int tempo);
 void terminal(int sig);
 
+char bel[500] = {[0 ... 498] = 7, [499] = '\0'};
+
 int main(void){
   int pid = fork();
+  printf("%s", bel);
   if(!pid){
     signal(1, terminal);
     srand(time(NULL));
@@ -45,11 +48,13 @@ void ciclo_pomodoro(){
 void descansa(int tempo){
   sleep(tempo * MINUTO);
   printf("Passaram %d minuto%s. Volta a trabalhar!\n", tempo, tempo > 1 ? "s" : "");
+  printf("%s", bel);
   return;
 }
 void trabalha(int tempo){
   sleep(tempo * MINUTO);
   printf("Passaram %d minuto%s. Descansa!\n", tempo, tempo > 1 ? "s" : " ");
+  printf("%s", bel);
   return;
 }
 void terminal(int sig){
