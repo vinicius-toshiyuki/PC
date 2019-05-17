@@ -7,7 +7,7 @@
 
 #define NP 10
 #define NC 10
-#define BUFFER_SIZE 10
+#define BUFFER_SIZE 20
 
 sem_t vazio;
 sem_t ocupado;

@@ -51,6 +51,7 @@ void * cliente(void *arg){
 	while(1){
 		pthread_mutex_lock(&temCadeiraLivre);
 		if(checaDisponibilidade()){
+			pthread_mutex_unlock(&temCadeiraLivre);
 			sem_post(&clienteNaCadeira);
 			pthread_cond_wait(&esperaCortar, &temCadeiraLivre);
 			printf("Agora estou careca\n");
