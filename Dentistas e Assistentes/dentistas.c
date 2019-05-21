@@ -4,6 +4,7 @@
 #include <wchar.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <semaphore.h>
 
 #define DENTISTA 5
 #define ASSISTENTE 10
@@ -18,6 +19,8 @@ int cor(int cod){printf("\e[48;5;%dm", cod); return 0;}
 void * dentista(void *arg);
 void * assistente(void *arg);
 void * paciente(void *arg);
+
+sem_t spacientes;
 
 int main(int argc, char **argv){
 	pthread_t thds[DENTISTA + ASSISTENTE + PACIENTE];
@@ -37,15 +40,25 @@ int main(int argc, char **argv){
 void * dentista(void *arg){
 	printf("Oi, sou dentista\n");
 	while(1){
-		printf("Estou atendendo, galera!\n");
-		sleep(3);
-		printf("Atendi, eu sou muito prestativo\n");
+		sem_wait(&spacientes);
+		printf("Vou atender\n");
+		if(rand() % 2){
+			printf("Quero ajuda\n");
+		}else{
+			printf("Ha. Nem preciso de ajuda\n");
+		}
+		printf("Terminei de atender\n");
+		sem_post(&sdentista);
 	}
 	pthread_exit(NULL);
 }
 
 void * assistente(void *arg){
 	printf("Oi, sou assistente\n");
+	while(1){
+		sem_trywait(&dentista);
+		printf("Vou ajudar\n")
+	}
 	pthread_exit(NULL);
 }
 
