@@ -57,24 +57,27 @@ int main(int argc, char **argv){
 
 #define lock(mutex) pthread_mutex_lock(mutex)
 #define unlock(mutex) pthread_mutex_unlock(mutex)
+#define print { lock(&mutex); printf
+#define endprint unlock(&mutex); }
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-int set(int *off){ lock(&mutex); printf("\e[0;0H\e[%dB\e[%dC", off[0]++, off[1]); fflush(stdout); unlock(&mutex); return 0; }
+inline int set(int *off){ printf("\e[0;0H\e[%dB\e[%dC", off[0]++, off[1]); fflush(stdout); return 0; }
 void * dentista(void *arg){
 	static int off[] = {0,30};
 	int id = (int) arg;
 
-	printf("Oi, sou dentista %d\n", id, set(off));
-	printf("Vou atender cliente %d\n", id, set(off));
+	print("Oi, sou dentista %d\n", id, set(off)); endprint
+	print("Vou atender cliente %d\n", id, set(off)); endprint
 	// Vê se precisa de ajuda
 	if(rand() % 2){
 		// Avisa que precisa de ajuda
-		printf("Quero ajuda\n", set(off));
+		print("Quero ajuda\n", set(off)); endprint
 		int qt, i, res, par;
 		sem_getvalue(&sassistentes, &qt);
 		qt = rand() % qt;
 		pthread_t assis[qt];
 		for(i = 0; i < qt; i++){
+			sem_wait(&sassistentes);
 			void *value = malloc(sizeof(int) * 2);
 			((int *) value)[0] = id;
 			((int *) value)[1] = i;
@@ -83,7 +86,7 @@ void * dentista(void *arg){
 		for(i = 0; i < qt; i++)
 			pthread_join(assis[i], NULL);
 	}else{
-		printf("Ha. Nem preciso de ajuda\n", set(off));
+		print("Ha. Nem preciso de ajuda\n", set(off)); endprint
 	}
 	sleep(3);
 	printf("Terminei de atender\n", set(off));
@@ -96,9 +99,10 @@ void * dentista(void *arg){
 void * assistente(void *arg){
 	static int off[] = {0,60};
 	int id = *((int *) arg), eu = *((int *) arg + 1);
-	printf("Oi, sou assistente %d\n", eu, set(off));
+	print("Oi, sou assistente %d\n", eu, set(off)); endprint
 	// Espera poder ajudar
-	printf("Vou ajudar %d\n", id, set(off));
+	print("Vou ajudar %d\n", id, set(off)); endprint
+	sem_post(&sassistentes);
 	sleep(rand() % 4);
 	pthread_exit(NULL);
 }
@@ -106,17 +110,17 @@ void * assistente(void *arg){
 void * paciente(void *arg){
 	static int off[] = {0,0};
 	int id = (int) arg;
-	printf("Oi, sou paciente %d\n", id, set(off));
 	while(1){
+		print("Oi, sou paciente %d\n", id, set(off)); endprint
 		// Paciente chega
 		// Espera um DENTISTA
-		printf("Quero ser atendido\n", set(off));
+		print("\tQuero ser atendido\n", set(off)); endprint
 		sem_wait(&sdentista);
 		pthread_t doto;
 		pthread_create(&doto, NULL, dentista, (void *) id);
 		// É atendido
 		pthread_join(doto, NULL);
-		printf("Tchau\n", set(off));
+		print("\tTchau\n", set(off)); endprint
 	}
 	pthread_exit(NULL);
 }
