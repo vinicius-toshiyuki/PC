@@ -8,19 +8,32 @@
 #include <semaphore.h>
 #include <time.h>
 
+int linhas, colunas;
+#define printi(off, printargs...) \
+{ \
+	lock(&mutex); \
+	if(off[0] == linhas - 1){ \
+		off[0] = 1; \
+		int i; \
+		char spaco[30] = {[0 ... 29] = ' '}; \
+		for(i = 0; i < linhas; i++){ \
+			printf("\e[%d;%dH%s", i, off[1], spaco); \
+		} \
+	} \
+	printf("\e[0;0H\e[%dB\e[%dC", off[0]++, off[1]); \
+	fflush(stdout); \
+	printf(printargs); \
+	unlock(&mutex); \
+}
+
 #define DENTISTA 1
 #define ASSISTENTE 2
 #define PACIENTE 4
 #define PESSOAS DENTISTA + ASSISTENTE + PACIENTE
-#define RESET printf("\e[0m");
-#define RESETN printf("\e[0m\n");
 
-int dentistas_ajuda[DENTISTA];
-int ajudando[DENTISTA];
-
-typedef void * (*P_FUN)(void *arg);
-
-int cor(int cod){printf("\e[48;5;%dm", cod); return 0;}
+#define lock(mutex) pthread_mutex_lock(mutex)
+#define unlock(mutex) pthread_mutex_unlock(mutex)
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void * dentista(void *arg);
 void * assistente(void *arg);
@@ -28,56 +41,59 @@ void * paciente(void *arg);
 
 sem_t spacientes, sdentista, ajuda, sassistentes;
 
-int linhas, colunas;
-
 int main(int argc, char **argv){
 	srand(time(NULL));
-
+	printf("\e[2J");
 	struct winsize w;
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
 	linhas = w.ws_row;
 	colunas = w.ws_col;
 
 	pthread_t thds[PACIENTE];
-
 	sem_init(&spacientes, 0, 0);
 	sem_init(&sdentista, 0, DENTISTA);
-	sem_init(&ajuda, 0, 0);
 	sem_init(&sassistentes, 0, ASSISTENTE);
 
-	printf("Teste\e[2J", cor(0)), RESETN;
-
 	int i;
-	for(i = 0; i < PACIENTE; i++)
-		pthread_create(&thds[i], NULL, paciente, (void *) i);
+	for(i = 0; i < PACIENTE; i++){
+		int *id = (int *) malloc(sizeof(int));
+		*id = i;
+		pthread_create(&thds[i], NULL, paciente, (void *) id);
+	}
 	for(i = 0; i < PACIENTE; i++)
 		pthread_join(thds[i], NULL);
 	return 0;
 }
 
-#define lock(mutex) pthread_mutex_lock(mutex)
-#define unlock(mutex) pthread_mutex_unlock(mutex)
-#define print { lock(&mutex); printf
-#define endprint unlock(&mutex); }
+void * paciente(void *arg){
+	static int off[] = {1,0};
+	int id = *(int *) arg;
+	while(1){
+		printi(off, "Oi, sou paciente %d\n", id);
+		printi(off, "\tQuero ser atendido\n");
+		sem_wait(&sdentista);
+		pthread_t doto;
+		pthread_create(&doto, NULL, dentista, arg);
+		pthread_join(doto, NULL);
+		printi(off, "\tTchau\n");
+	}
+	pthread_exit(NULL);
+}
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-inline int set(int *off){ printf("\e[0;0H\e[%dB\e[%dC", off[0]++, off[1]); fflush(stdout); return 0; }
 void * dentista(void *arg){
-	static int off[] = {0,30};
-	int id = (int) arg;
+	static int off[] = {1,30};
+	int id = *(int *) arg;
 
-	print("Oi, sou dentista %d\n", id, set(off)); endprint
-	print("Vou atender cliente %d\n", id, set(off)); endprint
-	// Vê se precisa de ajuda
+	printi(off, "Oi, sou dentista %d\n", id);
+	printi(off, "\tVou atender cliente %d\n", id);
 	if(rand() % 2){
-		// Avisa que precisa de ajuda
-		print("Quero ajuda\n", set(off)); endprint
-		int qt, i, res, par;
+		int qt = 1, i, res, par;
 		sem_getvalue(&sassistentes, &qt);
-		qt = rand() % qt;
+		qt = rand() % qt + 1;
+		printi(off, "\tQuero %d ajuda\n", qt);
 		pthread_t assis[qt];
 		for(i = 0; i < qt; i++){
-			sem_wait(&sassistentes);
+			sem_trywait(&sassistentes);
 			void *value = malloc(sizeof(int) * 2);
 			((int *) value)[0] = id;
 			((int *) value)[1] = i;
@@ -86,41 +102,21 @@ void * dentista(void *arg){
 		for(i = 0; i < qt; i++)
 			pthread_join(assis[i], NULL);
 	}else{
-		print("Ha. Nem preciso de ajuda\n", set(off)); endprint
+		printi(off, "\tHa. Nem preciso de ajuda\n");
 	}
 	sleep(3);
-	printf("Terminei de atender\n", set(off));
-	// Libera mais um dentista
+	printi(off, "\tTerminei de atender\n");
 	sem_post(&sdentista);
-	// Reseta para não estar precisando de ajuda
 	pthread_exit(NULL);
 }
 
 void * assistente(void *arg){
-	static int off[] = {0,60};
+	static int off[] = {1,60};
 	int id = *((int *) arg), eu = *((int *) arg + 1);
-	print("Oi, sou assistente %d\n", eu, set(off)); endprint
-	// Espera poder ajudar
-	print("Vou ajudar %d\n", id, set(off)); endprint
+	printi(off, "Oi, sou assistente %d\n", eu);
+	printi(off, "\tVou ajudar %d\n", id);
 	sem_post(&sassistentes);
 	sleep(rand() % 4);
-	pthread_exit(NULL);
-}
-
-void * paciente(void *arg){
-	static int off[] = {0,0};
-	int id = (int) arg;
-	while(1){
-		print("Oi, sou paciente %d\n", id, set(off)); endprint
-		// Paciente chega
-		// Espera um DENTISTA
-		print("\tQuero ser atendido\n", set(off)); endprint
-		sem_wait(&sdentista);
-		pthread_t doto;
-		pthread_create(&doto, NULL, dentista, (void *) id);
-		// É atendido
-		pthread_join(doto, NULL);
-		print("\tTchau\n", set(off)); endprint
-	}
+	free(arg);
 	pthread_exit(NULL);
 }
