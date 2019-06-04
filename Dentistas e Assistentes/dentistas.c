@@ -85,7 +85,7 @@ int main(int argc, char **argv){
 	linhas = w.ws_row;
 
 	pthread_t thds[PACIENTE], finalizador;
-	sem_init(&spacientes, 0, 0);
+	sem_init(&spacientes, 0, PACIENTE);
 	sem_init(&sdentista, 0, DENTISTA);
 	sem_init(&sassistentes, 0, ASSISTENTE);
 
@@ -108,6 +108,7 @@ void * paciente(void *arg){
 	static int off[] = {1,0,27,153};
 	int id = *(int *) arg;
 	while(1){
+		sem_wait(&spaciente);
 		printi(off, "[%2d] Oi, sou paciente %d\n", id, id);
 		printi(off, "[%2d]  Quero ser atendido\n", id);
 		sem_wait(&sdentista);
@@ -115,6 +116,7 @@ void * paciente(void *arg){
 		pthread_create(&doto, NULL, dentista, arg);
 		pthread_join(doto, NULL);
 		printi(off, "[%2d]  Tchau\n", id);
+		sem_post(&spaciente);
 	}
 	pthread_exit(NULL);
 }
@@ -132,7 +134,7 @@ void * dentista(void *arg){
 		printi(off, "[%2d]   Quero %d ajuda\n", id, qt);
 		pthread_t assis[qt];
 		for(i = 0; i < qt; i++){
-			sem_trywait(&sassistentes);
+			if(sem_trywait(&sassistentes)) continue;
 			void *value = malloc(sizeof(int) * 2);
 			((int *) value)[0] = id;
 			((int *) value)[1] = i;
@@ -154,8 +156,8 @@ void * assistente(void *arg){
 	int id = *((int *) arg), eu = *((int *) arg + 1);
 	printi(off, "[%2d] Oi, sou assistente %d\n", eu, eu);
 	printi(off, "[%2d]   Vou ajudar %d\n", eu, id);
-	sem_post(&sassistentes);
 	if(!nowait) sleep(rand() % 4);
+	sem_post(&sassistentes);
 	free(arg);
 	pthread_exit(NULL);
 }
