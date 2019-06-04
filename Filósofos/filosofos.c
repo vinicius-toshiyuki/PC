@@ -9,6 +9,10 @@
 #include <time.h>
 
 #define NF 5 // Número de filósofos
+#define BG(cor) "\e[48;5;" #cor "m"
+#define FG(cor) "\e[38;5;" #cor "m"
+#define CLEAR "\e[0m"
+#define CLEARN "\e[0m\n"
 
 sem_t garfos[NF];
 
@@ -47,7 +51,6 @@ char *filosofos[] = {
 	"Carl Schmitt",
 	"Carlo Lottieri",
 	"Charles Blattberg",
-	"Charles de Secondat, baron de Montesquieu",
 	"Charles Taylor",
 	"Cheng Hao",
 	"Cheng Yi",
@@ -306,20 +309,30 @@ int main(int argc, char **argv){
 	}
 	return 0;
 }
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 void * filosofo(void *arg){
 	int id = *((int *) arg);
 	free(arg);
 	while(1){
 		// Pega dois garfos, da direita e da esquerda, e come
-		int r = rand() % 2;
-		sem_wait(&garfos[id +  r]);
-		sem_wait(&garfos[(id + 1 - r) % NF]);
-		printf("%s: Não vivemos para comer, mas comemos para viver.. Vou comer.\n", filosofos[id % (NF + 1)]);
+		int r = rand() % 2, teste = 0;
+		pthread_mutex_lock(&mutex);
+		while(sem_trywait(&garfos[id +  r]) || (++teste &&	sem_trywait(&garfos[(id + 1 - r) % NF]))){
+			if(teste)
+				sem_post(&garfos[id + r]), teste--;
+			printf("[%02d] %-30s: " BG(73) "A vida não é competição, é cooperação: esperarei liberarem garfos." CLEARN, id, filosofos[id % (NF + 1)]);
+			pthread_cond_wait(&cond, &mutex);
+			int r = rand() % 2;
+		}
+		pthread_mutex_unlock(&mutex);
+		printf("[%02d] %-30s: " BG(38) "Não vivemos para comer, mas comemos para viver.. Vou comer." CLEARN, id, filosofos[id % (NF + 1)]);
 		sleep(2);
-		printf("%s: A realidade é dura, mas ainda é o único lugar onde se pode comer um bom bife.. Terminei de comer.\n", filosofos[id % (NF + 1)]);
+		printf("[%02d] %-30s: " BG(84) "A realidade é dura, mas é o único lugar onde se tem um bom bife.. Terminei de comer." CLEARN, id, filosofos[id % (NF + 1)]);
 		sem_post(&garfos[id + r]);
 		sem_post(&garfos[id + 1 - r]);
-		printf("%s: Onde quer que vá, vá com o coração. Eu vou pensar.\n", filosofos[id % (NF + 1)]);
+		pthread_cond_broadcast(&cond);
+		printf("[%02d] %-30s: " BG(134) "Onde quer que vá, vá com o coração. Eu vou pensar." CLEARN, id, filosofos[id % (NF + 1)]);
 		// Ao terminar de comer, libera os garfos e pensa
 		sleep(5);
 	}
