@@ -44,9 +44,9 @@ unsigned short toggle = 0x000, simple = 0, nowait = 0;
 	printf(printargs); \
 }
 
-#define DENTISTA 1
-#define ASSISTENTE 2
-#define PACIENTE 4
+#define DENTISTA 10
+#define ASSISTENTE 20
+#define PACIENTE 40
 #define PESSOAS DENTISTA + ASSISTENTE + PACIENTE
 
 #define lock(mutex) pthread_mutex_lock(mutex)
@@ -71,9 +71,9 @@ int main(int argc, char **argv){
 		memcpy(args, argv, sizeof(char *) * argc);
 		qsort(argv, argc, sizeof(char *), (__compar_fn_t) c);
 		for(int i = 0; i < argc; i++) printf("%s\n", argv[i]);
-		simple = 1;
 		char *flags[] = {"-s", "-w"};
-		printf("%p\n", bsearch(flags, argv, argc, sizeof(char *), (__compar_fn_t) c));// ? 1 : 0;
+		simple =  bsearch(flags, argv, argc, sizeof(char *), (__compar_fn_t) c) ? 1 : 0;
+		nowait =  bsearch(flags + 1, argv, argc, sizeof(char *), (__compar_fn_t) c) ? 1 : 0;
 	}
 	srand(time(NULL));
 	if(!simple){
@@ -105,10 +105,10 @@ int main(int argc, char **argv){
 }
 
 void * paciente(void *arg){
-	static int off[] = {1,0,27,153};
+	static int off[] = {1,0,27,234};
 	int id = *(int *) arg;
 	while(1){
-		sem_wait(&spaciente);
+		sem_wait(&spacientes);
 		printi(off, "[%2d] Oi, sou paciente %d\n", id, id);
 		printi(off, "[%2d]  Quero ser atendido\n", id);
 		sem_wait(&sdentista);
@@ -116,7 +116,7 @@ void * paciente(void *arg){
 		pthread_create(&doto, NULL, dentista, arg);
 		pthread_join(doto, NULL);
 		printi(off, "[%2d]  Tchau\n", id);
-		sem_post(&spaciente);
+		sem_post(&spacientes);
 	}
 	pthread_exit(NULL);
 }
@@ -130,11 +130,14 @@ void * dentista(void *arg){
 	if(rand() % 2){
 		int qt = 1, i, res, par;
 		sem_getvalue(&sassistentes, &qt);
-		qt = rand() % qt + 1;
+		qt = rand() % (qt > 0 ? qt : 1) + 1;
 		printi(off, "[%2d]   Quero %d ajuda\n", id, qt);
 		pthread_t assis[qt];
 		for(i = 0; i < qt; i++){
-			if(sem_trywait(&sassistentes)) continue;
+			if(sem_trywait(&sassistentes)){
+				pthread_create(&assis[i], NULL, assistente, NULL);
+				continue;
+			}
 			void *value = malloc(sizeof(int) * 2);
 			((int *) value)[0] = id;
 			((int *) value)[1] = i;
@@ -153,12 +156,14 @@ void * dentista(void *arg){
 
 void * assistente(void *arg){
 	static int off[] = {1,I<<1,78,9};
-	int id = *((int *) arg), eu = *((int *) arg + 1);
-	printi(off, "[%2d] Oi, sou assistente %d\n", eu, eu);
-	printi(off, "[%2d]   Vou ajudar %d\n", eu, id);
-	if(!nowait) sleep(rand() % 4);
+	if(arg){
+					int id = *((int *) arg), eu = *((int *) arg + 1);
+					printi(off, "[%2d] Oi, sou assistente %d\n", eu, eu);
+					printi(off, "[%2d]   Vou ajudar %d\n", eu, id);
+					if(!nowait) sleep(rand() % 4);
+	}
 	sem_post(&sassistentes);
-	free(arg);
+	if(arg) free(arg);
 	pthread_exit(NULL);
 }
 
