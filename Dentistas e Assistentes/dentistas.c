@@ -11,6 +11,10 @@
 #include <stdlib.h>
 
 #define I 35
+#define DENTISTA 2000
+#define ASSISTENTE 3000
+#define PACIENTE 4000
+#define PESSOAS DENTISTA + ASSISTENTE + PACIENTE
 int linhas, colunas, enable = 1, last = 1;
 unsigned short toggle = 0x000, simple = 0, nowait = 0;
 #define printi(off, printargs...) { \
@@ -43,11 +47,6 @@ unsigned short toggle = 0x000, simple = 0, nowait = 0;
 }else \
 	printf(printargs); \
 }
-
-#define DENTISTA 10
-#define ASSISTENTE 20
-#define PACIENTE 40
-#define PESSOAS DENTISTA + ASSISTENTE + PACIENTE
 
 #define lock(mutex) pthread_mutex_lock(mutex)
 #define unlock(mutex) pthread_mutex_unlock(mutex)
@@ -123,7 +122,7 @@ void * paciente(void *arg){
 
 void * dentista(void *arg){
 	static int off[] = {1,I,54,45};
-	int id = *(int *) arg;
+	const int id = *(int *) arg;
 
 	printi(off, "[%2d] Oi, sou dentista %d\n", id, id);
 	printi(off, "[%2d]   Vou atender cliente %d\n", id, id);
@@ -134,17 +133,16 @@ void * dentista(void *arg){
 		printi(off, "[%2d]   Quero %d ajuda\n", id, qt);
 		pthread_t assis[qt];
 		for(i = 0; i < qt; i++){
-			if(sem_trywait(&sassistentes)){
-				pthread_create(&assis[i], NULL, assistente, NULL);
+			assis[i] = (pthread_t) NULL;
+			if(sem_trywait(&sassistentes))
 				continue;
-			}
 			void *value = malloc(sizeof(int) * 2);
 			((int *) value)[0] = id;
 			((int *) value)[1] = i;
 			pthread_create(&assis[i], NULL, assistente, value);
 		}
 		for(i = 0; i < qt; i++)
-			pthread_join(assis[i], NULL);
+			if(assis[i]) pthread_join(assis[i], NULL);
 	}else{
 		printi(off, "[%2d]   Ha. Nem preciso de ajuda\n", id);
 	}
@@ -163,7 +161,7 @@ void * assistente(void *arg){
 					if(!nowait) sleep(rand() % 4);
 	}
 	sem_post(&sassistentes);
-	if(arg) free(arg);
+	if(arg)	free(arg);
 	pthread_exit(NULL);
 }
 
